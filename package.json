@@ -1,0 +1,19 @@
+{
+  "name": "graphql.wtf-mongodb",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@graphql-tools/schema": "8.2.0",
+    "express": "4.17.1",
+    "express-graphql": "0.12.0",
+    "graphql": "15.6.0",
+    "mongodb": "4.1.2"
+  },
+  "devDependencies": {
+    "dotenv": "10.0.0",
+    "nodemon": "2.0.13"
+  }
+}
