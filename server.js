@@ -27,14 +27,14 @@ const connectToDb = async () => {
 
 const typeDefs = `
   type Query {
-    users: [User!]!
+    users(limit: Int, skip: Int): [User]
     user(id: ID!): User
   }
 
   type Mutation {
-    userCreate(user: UserCreateInput!): User
-    userUpdate(userId: ID!, user: UserUpdateInput!): User
-    userDelete(userId: ID!): Boolean
+    userCreate(input: UserInput!): UserCreatePayload
+    userUpdate(input: UserInput!): UserUpdatePayload
+    userDelete(input: UserDeleteInput!): UserDeletePayload
   }
 
   type User {
@@ -43,24 +43,38 @@ const typeDefs = `
     bio: String
   }
 
-  input UserCreateInput {
-    name: String!
+  input UserInput {
+    id: ID
+    name: String
     bio: String
   }
 
-  input UserUpdateInput {
-    name: String
-    bio: String
+  input UserDeleteInput {
+    id: ID!
+  }
+
+  type UserCreatePayload {
+    user: User
+  }
+
+  type UserUpdatePayload {
+    user: User
+  }
+
+  type UserDeletePayload {
+    deletedUserId: ID
   }
 `;
 
 const resolvers = {
   Query: {
-    users: async (_, __, context) => {
+    users: async (_, { skip, limit }, context) => {
       const data = await context.mongo
         .db("wtf")
         .collection("users")
         .find()
+        .skip(parseInt(skip, 10) || 0)
+        .limit(parseInt(limit, 10) || 0)
         .map(({ _id, ...user }) => ({ ...user, id: _id }))
         .toArray();
 
@@ -79,34 +93,40 @@ const resolvers = {
     },
   },
   Mutation: {
-    userCreate: async (_, { user }, context) => {
+    userCreate: async (_, { input }, context) => {
       const { insertedId } = await context.mongo
         .db("wtf")
         .collection("users")
-        .insertOne(user);
+        .insertOne(input);
 
-      return { id: insertedId, ...user };
+      return { user: { id: insertedId, ...input } };
     },
-    userUpdate: async (_, { userId, user }, context) => {
+    userUpdate: async (_, { input }, context) => {
+      const { id, ...$set } = input;
+
       const { _id, ...existingUser } = await context.mongo
         .db("wtf")
         .collection("users")
-        .findOne({ _id: ObjectId(userId) });
+        .findOne({ _id: ObjectId(id) });
 
-      const data = await context.mongo
+      await context.mongo
         .db("wtf")
         .collection("users")
-        .updateOne({ _id }, { $set: user });
+        .updateOne({ _id }, { $set });
 
-      return { id: userId, ...existingUser, ...user };
+      return { user: { id, ...existingUser, ...$set } };
     },
-    userDelete: async (_, { userId }, context) => {
-      const { acknowledged } = await context.mongo
+    userDelete: async (_, { input }, context) => {
+      const { id } = input;
+
+      await context.mongo
         .db("wtf")
         .collection("users")
-        .deleteOne({ _id: ObjectId(userId) });
+        .deleteOne({ _id: ObjectId(id) });
 
-      return acknowledged;
+      return {
+        deletedUserId: id,
+      };
     },
   },
 };
